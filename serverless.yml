@@ -1,0 +1,48 @@
+service: insectslambda
+
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+
+package:
+  exclude:
+    - insectslambdavenv/**
+
+provider:
+  name: aws
+  runtime: python3.7
+  region: ap-southeast-1
+  timeout: 60
+  memorySize: 2048
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+      - s3:GetObject
+      - s3:PutObject
+      Resource:
+      - arn:aws:s3:::iothomedlmodels/*
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+      - arn:aws:dynamodb:ap-southeast-1:131685950523:table/iothome
+  environment:
+    DL_S3: iothomedlmodels
+    GRAPH: ssd_resnet101/frozen_inference_graph.pb
+    PBTXT: ssd_resnet101/graph.pbtxt
+
+
+functions:
+  check_for_insects:
+    handler: insecthandler.check_for_insects
+    events:
+    - iot:
+        sql: "SELECT encode(*, 'base64') AS data, timestamp() AS ts FROM 'raspberry1/sub'"
+        sqlVersion: "2016-03-23"
